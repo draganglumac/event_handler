@@ -15,14 +15,9 @@ JNX_EVENT_SEND("BLAH!","DATA");
 JNX_EVENT_UNSUBSCRIBE(handle);
 ```
 
-Dependency
-============
-
-https://github.com/AlexsJones/jnxlibc
-Install this first :) 
-
-
 Build
 ===========
+
+Will install submodules and pull deps automagically
 
 make
