@@ -54,7 +54,7 @@ event_object *jnx_event_object_create(uint8_t *evt_type,void *data) {
 	eo->evt_type = strndup(evt_type,strlen(evt_type));
 	eo->evt_data = data;
 	eo->identity = jnx_event_identity_create();
-	JNX_LOGC(JLOG_NORMAL,"Generated event with ID:%ld\n",eo->identity);
+	JNX_LOGC(JLOG_NORMAL,"Generated event with ID:%lu\n",eo->identity);
 	return eo;
 }
 void jnx_event_update_subscribers(event_object *e) {
