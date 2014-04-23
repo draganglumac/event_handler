@@ -45,8 +45,24 @@ void *single_event(void *args) {
 	test_one_not_complete = 1;
 	return 0;
 }
+int h_test = 0;
+int g_test = 0;
+int i_test = 0;
+int t_test = 0;
 int multi_event_temp_callback(event_object *e) {
-
+	printf("Got event [%lu:%s]\n",e->identity,e->evt_type);
+	if(strcmp(e->evt_type,"TestOne") == 0) {
+		h_test = 1;
+	}
+	if(strcmp(e->evt_type,"TestTwo") == 0) {
+		g_test = 1;
+	}
+	if(strcmp(e->evt_type,"TestThree") == 0) {
+		i_test = 1;
+	}
+	if(strcmp(e->evt_type,"TestFour") == 0) {
+		t_test = 1;
+	}
 	return 0;
 }
 void *multi_event(void *args) {
@@ -54,11 +70,22 @@ void *multi_event(void *args) {
 	jnx_event_handle *h;
 	JNX_EVENT_SUBSCRIBE("TestOne",h,multi_event_temp_callback);
 	jnx_event_handle *g;
-	JNX_EVENT_SUBSCRIBE("TestOne",g,multi_event_temp_callback);
+	JNX_EVENT_SUBSCRIBE("TestTwo",g,multi_event_temp_callback);
 	jnx_event_handle *i;
-	JNX_EVENT_SUBSCRIBE("TestTwo",i,multi_event_temp_callback);
+	JNX_EVENT_SUBSCRIBE("TestThree",i,multi_event_temp_callback);
 	jnx_event_handle *j;
-	JNX_EVENT_SUBSCRIBE("TestThree",j,multi_event_temp_callback);
+	JNX_EVENT_SUBSCRIBE("TestFour",j,multi_event_temp_callback);
+	sleep(1);
+	JNX_EVENT_SEND("TestOne",NULL);
+	JNX_EVENT_SEND("TestTwo",NULL);
+	JNX_EVENT_SEND("TestThree",NULL);
+	JNX_EVENT_SEND("TestFour",NULL);
+
+	sleep(5);
+	assert(h_test);
+	assert(g_test);
+	assert(i_test);
+	assert(t_test);
 
 	test_two_not_complete = 1;
 	return 0;
@@ -69,7 +96,6 @@ int main(int argc, char **argv) {
 
 	jnx_thread_create_disposable(single_event,NULL);
 	
-
 	while(!test_one_not_complete) {
 		sleep(1);
 	}

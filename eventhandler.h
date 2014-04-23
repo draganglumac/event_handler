@@ -32,8 +32,10 @@ typedef struct jnx_event_handle {
 	uint8_t *evt_type;
 	jnx_event_callback c;
 }jnx_event_handle;
+
 #define JNX_EVENT_SEND(X,Y) \
 	jnx_event_send(jnx_event_object_create(X,Y)); 
+
 #define JNX_EVENT_SUBSCRIBE(X,EVT_HANDLE,Y)\
 	EVT_HANDLE = jnx_event_handle_create(X,Y); \
 	jnx_event_subscribe(EVT_HANDLE); ///free??
@@ -51,9 +53,8 @@ event_object *jnx_event_object_create(uint8_t *evt_type,void *data);
 
 void jnx_event_send(event_object *e);
 
-void jnx_event_check();
-
 void jnx_event_global_create(unsigned int max_queue);
 
 void jnx_event_global_destroy();
+
 #endif
