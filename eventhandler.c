@@ -35,18 +35,40 @@ static jnx_queue *event_queue = NULL;
 unsigned long jnx_event_identity_create() {
 	return rand();
 }
-jnx_event *jnx_event_handle_create(uint8_t *evt_type,jnx_event_callback c) {
+jnx_event_handle *jnx_event_handle_create(uint8_t *evt_type,jnx_event_callback c) {
 	assert(evt_type);
 	assert(c);
-	jnx_event *e = JNX_MEM_MALLOC(sizeof(jnx_event));
+	jnx_event_handle *e = JNX_MEM_MALLOC(sizeof(jnx_event_handle));
 	e->c = c;
 	e->evt_type = strndup(evt_type,strlen(evt_type));
 	e->identity = jnx_event_identity_create();	
 	JNX_LOGC(JLOG_NORMAL,"Generated eventhandler with ID:%ld\n",e->identity);
 	return e;
 }
-void jnx_event_subscribe(jnx_event *e) {
+void jnx_event_handle_destroy(jnx_event_handle *e) {
+	free(e->evt_type);
+	JNX_MEM_FREE(e);
+}
+void jnx_event_unsubscribe(jnx_event_handle *e) {
+	jnx_list *temp = jnx_list_create();
+	jnx_thread_lock(&evt_lock);
+	jnx_node *head = subscription_list->head;
+	while(head) {
+		jnx_event_handle *je = head->_data;
+		if(je->identity != e->identity) {
+			jnx_list_add(temp,je);
+		}
+	}
+	jnx_list_destroy(&subscription_list);
+	subscription_list = temp;
+	jnx_thread_unlock(&evt_lock);
+	jnx_event_handle_destroy(e);
+}
+void jnx_event_subscribe(jnx_event_handle *e) {
+	JNX_LOGC(JLOG_NORMAL,"Subscribing new handle [%lu:%s]\n",e->identity,e->evt_type);
+	jnx_thread_lock(&evt_lock);
 	jnx_list_add(subscription_list,e);
+	jnx_thread_unlock(&evt_lock);
 }
 event_object *jnx_event_object_create(uint8_t *evt_type,void *data) {
 	JNX_LOGC(JLOG_NORMAL,"Creating event object\n");
@@ -63,24 +85,20 @@ void jnx_event_update_subscribers(event_object *e) {
 	jnx_node *head = subscription_list->head,
 			 *reset = subscription_list->head;
 	while(head) {
-		jnx_event *je = head->_data;
-		je->c(e);	
+		jnx_event_handle *je = head->_data;
+		if(strcmp(je->evt_type,e->evt_type) == 0) {
+			je->c(e);	
+		}
 		head = head->next_node;
 	}
 	head = reset;
 	jnx_thread_unlock(&evt_lock);
 	JNX_LOGC(JLOG_NORMAL,"Queue length %d\n",event_queue->list->counter);
 }
-int jnx_event_send(event_object *e) {
-	if(exiting) {
-		JNX_MEM_FREE(e);
-		return 1;
-	}
+void jnx_event_send(event_object *e) {
 	jnx_thread_lock(&queue_lock);
 	jnx_queue_push(event_queue,e);
 	jnx_thread_unlock(&queue_lock);
-	JNX_MEM_FREE(e);
-	return 0;
 }
 void *jnx_event_mainloop(void *args) {
 
@@ -91,12 +109,10 @@ void *jnx_event_mainloop(void *args) {
 	while(1) {
 		jnx_thread_lock(&evt_lock);
 		if(exiting) {
-
 			jnx_thread_unlock(&evt_lock);
 			return 0;
 		}
 		jnx_thread_unlock(&evt_lock);
-
 		jnx_thread_lock(&queue_lock);
 		event_object *e = jnx_queue_pop(event_queue);
 		jnx_thread_unlock(&queue_lock);
