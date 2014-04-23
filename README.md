@@ -6,7 +6,8 @@ C based event handler system
 Dependency
 ============
 
-jnxlibc 
+https://github.com/AlexsJones/jnxlibc
+Install this first :) 
 
 
 Build
