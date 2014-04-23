@@ -45,6 +45,19 @@ jnx_event_handle *jnx_event_handle_create(uint8_t *evt_type,jnx_event_callback c
 	JNX_LOGC(JLOG_NORMAL,"Generated eventhandler with ID:%ld\n",e->identity);
 	return e;
 }
+event_object *jnx_event_object_create(uint8_t *evt_type,void *data) {
+	JNX_LOGC(JLOG_NORMAL,"Creating event object\n");
+	event_object *eo = JNX_MEM_MALLOC(sizeof(event_object));
+	eo->evt_type = strndup(evt_type,strlen(evt_type));
+	eo->evt_data = data;
+	eo->identity = jnx_event_identity_create();
+	JNX_LOGC(JLOG_NORMAL,"Generated event with ID:%lu\n",eo->identity);
+	return eo;
+}
+void jnx_event_object_destroy(event_object *e) {
+	free(e->evt_type);
+	JNX_MEM_FREE(e);
+}
 void jnx_event_handle_destroy(jnx_event_handle *e) {
 	free(e->evt_type);
 	JNX_MEM_FREE(e);
@@ -71,15 +84,6 @@ void jnx_event_subscribe(jnx_event_handle *e) {
 	jnx_thread_lock(&evt_lock);
 	jnx_list_add(subscription_list,e);
 	jnx_thread_unlock(&evt_lock);
-}
-event_object *jnx_event_object_create(uint8_t *evt_type,void *data) {
-	JNX_LOGC(JLOG_NORMAL,"Creating event object\n");
-	event_object *eo = JNX_MEM_MALLOC(sizeof(event_object));
-	eo->evt_type = strndup(evt_type,strlen(evt_type));
-	eo->evt_data = data;
-	eo->identity = jnx_event_identity_create();
-	JNX_LOGC(JLOG_NORMAL,"Generated event with ID:%lu\n",eo->identity);
-	return eo;
 }
 void jnx_event_update_subscribers(event_object *e) {
 	assert(e);	
@@ -144,6 +148,18 @@ void jnx_event_global_destroy() {
 	jnx_thread_lock(&evt_lock);
 	exiting = 1;	
 	jnx_thread_unlock(&evt_lock);
+
+	jnx_node *head = subscription_list->head;
+	while(head) {
+		jnx_event_handle *e = head->_data;
+		jnx_event_handle_destroy(e);
+		head = head->next_node;
+	}
 	jnx_list_destroy(&subscription_list);
+
+	event_object *eo;
+	while((eo = jnx_queue_pop(event_queue)) != NULL) {
+		jnx_event_object_destroy(eo);
+	}	
 	jnx_queue_destroy(&event_queue);
 }

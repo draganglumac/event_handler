@@ -17,6 +17,7 @@
  */
 #include <stdlib.h>
 #include <jnxc_headers/jnxthread.h>
+#include <jnxc_headers/jnxterm.h>
 #include "eventhandler.h"
 #include <unistd.h>
 int test_one_not_complete = 0;
@@ -107,5 +108,7 @@ int main(int argc, char **argv) {
 	}
 
 	jnx_event_global_destroy();
+	printf("Jnx event handler system:");
+    jnx_term_printf_in_color(JNX_COL_GREEN, "  OK\n");
 	return 0;
 }
