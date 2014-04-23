@@ -58,9 +58,11 @@ void jnx_event_unsubscribe(jnx_event_handle *e) {
 		if(je->identity != e->identity) {
 			jnx_list_add(temp,je);
 		}
+		head = head->next_node;
 	}
 	jnx_list_destroy(&subscription_list);
 	subscription_list = temp;
+	JNX_LOGC(JLOG_NORMAL,"Number of events %d\n",subscription_list->counter);
 	jnx_thread_unlock(&evt_lock);
 	jnx_event_handle_destroy(e);
 }
