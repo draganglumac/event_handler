@@ -7,12 +7,16 @@ Usage
 ===========
 
 ```c
+jnx_event_global_create();
+
 jnx_event_handler *handle;
 JNX_EVENT_SUBSCRIBE("BLAH!",handle,callback_function);
 //And perhaps in another thread or another time in the program...
 JNX_EVENT_SEND("BLAH!","DATA");
 //And even later on
 JNX_EVENT_UNSUBSCRIBE(handle);
+
+jnx_event_global_destroy();
 ```
 ```
 | 						Thread A 					    |             Thread B  		     |
@@ -32,11 +36,11 @@ Build
 ===========
 
 Will install submodules and pull deps automagically
-
+```
 make subs
 make test
 make all  //Will prompt for sudo password to install
-
+```
 
 Usage & Linking
 ===========
@@ -44,7 +48,7 @@ Usage & Linking
 In the makefile...
 
 ```
-gcc *c -ljnxevent
+gcc *.c -ljnxevent
 ```
 
 In the code 
