@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <jnxc_headers/jnxthread.h>
 #include <jnxc_headers/jnxterm.h>
-#include "eventhandler.h"
+#include "src/eventhandler.h"
 #include <unistd.h>
 int test_one_not_complete = 0;
 int test_two_not_complete = 0;
