@@ -22,6 +22,7 @@
 #include <jnxc_headers/jnxthread.h>
 #include <jnxc_headers/jnxqueue.h>
 #include <jnxc_headers/jnxlog.h>
+#include <jnxc_headers/jnxhash.h>
 #include "jnxevent.h"
 #include <time.h>
 jnx_thread_mutex evt_lock;
@@ -32,15 +33,25 @@ static int exiting = 0;
 static jnx_list *subscription_list = NULL;
 static jnx_queue *event_queue = NULL;
 
+extern int jnx_hash_string(const char* input, int map_size);
+
 unsigned long jnx_event_identity_create() {
 	return rand();
+}
+int jnx_event_is_of_type(uint8_t *evt_type, event_object *e) {
+
+	int evt = jnx_hash_string(evt_type,strlen(evt_type));
+	if(e->evt_type == evt) {
+		return 1;
+	}
+	return 0;
 }
 jnx_event_handle *jnx_event_handle_create(uint8_t *evt_type,jnx_event_callback c) {
 	assert(evt_type);
 	assert(c);
 	jnx_event_handle *e = JNX_MEM_MALLOC(sizeof(jnx_event_handle));
 	e->c = c;
-	e->evt_type = strndup(evt_type,strlen(evt_type));
+	e->evt_type = jnx_hash_string(evt_type,strlen(evt_type));
 	e->identity = jnx_event_identity_create();	
 	JNX_LOGC(JLOG_NORMAL,"Generated eventhandler with ID:%ld\n",e->identity);
 	return e;
@@ -48,18 +59,16 @@ jnx_event_handle *jnx_event_handle_create(uint8_t *evt_type,jnx_event_callback c
 event_object *jnx_event_object_create(uint8_t *evt_type,void *data) {
 	JNX_LOGC(JLOG_NORMAL,"Creating event object\n");
 	event_object *eo = JNX_MEM_MALLOC(sizeof(event_object));
-	eo->evt_type = strndup(evt_type,strlen(evt_type));
+	eo->evt_type = jnx_hash_string(evt_type,strlen(evt_type));
 	eo->evt_data = data;
 	eo->identity = jnx_event_identity_create();
 	JNX_LOGC(JLOG_NORMAL,"Generated event with ID:%lu\n",eo->identity);
 	return eo;
 }
 void jnx_event_object_destroy(event_object *e) {
-	free(e->evt_type);
 	JNX_MEM_FREE(e);
 }
 void jnx_event_handle_destroy(jnx_event_handle *e) {
-	free(e->evt_type);
 	JNX_MEM_FREE(e);
 }
 void jnx_event_unsubscribe(jnx_event_handle *e) {
@@ -80,7 +89,7 @@ void jnx_event_unsubscribe(jnx_event_handle *e) {
 	jnx_event_handle_destroy(e);
 }
 void jnx_event_subscribe(jnx_event_handle *e) {
-	JNX_LOGC(JLOG_NORMAL,"Subscribing new handle [%lu:%s]\n",e->identity,e->evt_type);
+	JNX_LOGC(JLOG_NORMAL,"Subscribing new handle [%lu:%d]\n",e->identity,e->evt_type);
 	jnx_thread_lock(&evt_lock);
 	jnx_list_add(subscription_list,e);
 	jnx_thread_unlock(&evt_lock);
@@ -92,7 +101,7 @@ void jnx_event_update_subscribers(event_object *e) {
 			 *reset = subscription_list->head;
 	while(head) {
 		jnx_event_handle *je = head->_data;
-		if(strcmp(je->evt_type,e->evt_type) == 0) {
+		if(je->evt_type == e->evt_type) {
 			je->c(e);	
 		}
 		head = head->next_node;

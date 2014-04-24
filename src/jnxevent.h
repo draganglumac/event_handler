@@ -21,7 +21,7 @@
 #include <jnxc_headers/jnxmem.h>
 typedef struct event_object {
 	unsigned long identity;
-	uint8_t *evt_type;
+	int evt_type;
 	void *evt_data;
 }event_object;
 
@@ -29,7 +29,7 @@ typedef int (*jnx_event_callback)(event_object*);
 
 typedef struct jnx_event_handle {
 	unsigned long identity;
-	uint8_t *evt_type;
+	int evt_type;
 	jnx_event_callback c;
 }jnx_event_handle;
 
@@ -52,6 +52,8 @@ void jnx_event_unsubscribe(jnx_event_handle *e);
 event_object *jnx_event_object_create(uint8_t *evt_type,void *data);
 
 void jnx_event_send(event_object *e);
+
+int jnx_event_is_of_type(uint8_t *evt_type, event_object *e);
 
 void jnx_event_global_create(unsigned int max_queue);
 

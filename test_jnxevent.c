@@ -53,17 +53,17 @@ int g_test = 0;
 int i_test = 0;
 int t_test = 0;
 int multi_event_temp_callback(event_object *e) {
-	printf("Got event [%lu:%s]\n",e->identity,e->evt_type);
-	if(strcmp(e->evt_type,"TestOne") == 0) {
+	printf("Got event [%lu:%d]\n",e->identity,e->evt_type);
+	if(jnx_event_is_of_type("TestOne",e)) {
 		h_test = 1;
 	}
-	if(strcmp(e->evt_type,"TestTwo") == 0) {
+	if(jnx_event_is_of_type("TestTwo",e)) {
 		g_test = 1;
 	}
-	if(strcmp(e->evt_type,"TestThree") == 0) {
+	if(jnx_event_is_of_type("TestThree",e)) {
 		i_test = 1;
 	}
-	if(strcmp(e->evt_type,"TestFour") == 0) {
+	if(jnx_event_is_of_type("TestFour",e)) {
 		t_test = 1;
 	}
 	return 0;
