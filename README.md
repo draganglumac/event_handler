@@ -32,11 +32,11 @@ Build
 ===========
 
 Will install submodules and pull deps automagically
-
+```
 make subs
 make test
 make all  //Will prompt for sudo password to install
-
+```
 
 Usage & Linking
 ===========
