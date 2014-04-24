@@ -33,4 +33,22 @@ Build
 
 Will install submodules and pull deps automagically
 
-make
+make subs
+make test
+make all  //Will prompt for sudo password to install
+
+
+Usage & Linking
+===========
+
+In the makefile...
+
+```
+gcc *c -ljnxevent
+```
+
+In the code 
+
+```
+#include <jnxevent.h>
+```

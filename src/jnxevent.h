@@ -15,8 +15,8 @@
  *
  * =====================================================================================
  */
-#ifndef __EVENT_HANDLER_H__
-#define __EVENT_HANDLER_H__
+#ifndef __JNX_EVENT_H__
+#define __JNX_EVENT_H__
 #include <stdint.h>
 #include <jnxc_headers/jnxmem.h>
 typedef struct event_object {

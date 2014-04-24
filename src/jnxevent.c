@@ -22,7 +22,7 @@
 #include <jnxc_headers/jnxthread.h>
 #include <jnxc_headers/jnxqueue.h>
 #include <jnxc_headers/jnxlog.h>
-#include "eventhandler.h"
+#include "jnxevent.h"
 #include <time.h>
 jnx_thread_mutex evt_lock;
 jnx_thread_mutex queue_lock;

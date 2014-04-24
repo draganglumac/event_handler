@@ -18,11 +18,13 @@
 #include <stdlib.h>
 #include <jnxc_headers/jnxthread.h>
 #include <jnxc_headers/jnxterm.h>
-#include "src/eventhandler.h"
+#include <jnxc_headers/jnxlog.h>
+#include "src/jnxevent.h"
 #include <unistd.h>
+#include <time.h>
 int test_one_not_complete = 0;
 int test_two_not_complete = 0;
-
+int test_three_not_compelte = 0;
 //individual test markers
 int worker_test_pass = 0;
 
@@ -97,15 +99,28 @@ int main(int argc, char **argv) {
 
 	jnx_thread_create_disposable(single_event,NULL);
 	
-	while(!test_one_not_complete) {
-		sleep(1);
+    time_t s,e;
+    time(&s);
+	double duration = 0;
+	double max_test_timeout = 10.0f;
+	while(!test_one_not_complete && duration < max_test_timeout) {
+		time(&e);
+		duration = difftime(e,s);	
 	}
-	
+	JNX_LOGC(JLOG_DEBUG,"Test one took %fs\n",duration);
+	assert(duration < max_test_timeout);
+
+
+    time(&s);
+	duration = 0;
 	jnx_thread_create_disposable(multi_event,NULL);
 
 	while(!test_two_not_complete) {
-		sleep(1);
+		time(&e);
+		duration = difftime(e,s);	
 	}
+	JNX_LOGC(JLOG_DEBUG,"Test two took %fs\n",duration);
+	assert(duration < max_test_timeout);
 
 	jnx_event_global_destroy();
 	printf("Jnx event handler system:");
