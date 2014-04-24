@@ -1,4 +1,4 @@
-eventHandler
+event_handler
 ============
 
 C based event handler system
