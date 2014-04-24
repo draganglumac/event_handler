@@ -14,6 +14,19 @@ JNX_EVENT_SEND("BLAH!","DATA");
 //And even later on
 JNX_EVENT_UNSUBSCRIBE(handle);
 ```
+```
+| 						Thread A 					    |             Thread B  		     |
+| ----------------------------------------------------- | ---------------------------------- |
+| JNX_EVENT_SUBSCRIBE("Blah!",handle,callback_function);|                   			     |
+| 														|                    				 |
+|                                                       | JNX_EVENT_SEND("Blah!",&somedata); |
+|   													| 									 |
+| JNX_EVENT_UNSUBSRIBE(handle);                         |                                    |
+
+```
+
+
+
 
 Build
 ===========
