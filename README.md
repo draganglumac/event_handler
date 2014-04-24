@@ -44,7 +44,7 @@ Usage & Linking
 In the makefile...
 
 ```
-gcc *c -ljnxevent
+gcc *.c -ljnxevent
 ```
 
 In the code 
