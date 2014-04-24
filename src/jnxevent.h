@@ -38,7 +38,7 @@ typedef struct jnx_event_handle {
 
 #define JNX_EVENT_SUBSCRIBE(X,EVT_HANDLE,Y)\
 	EVT_HANDLE = jnx_event_handle_create(X,Y); \
-	jnx_event_subscribe(EVT_HANDLE); ///free??
+	jnx_event_subscribe(EVT_HANDLE); 
 
 #define JNX_EVENT_UNSUBSCRIBE(EVT_HANDLE) \
 	jnx_event_unsubscribe(EVT_HANDLE);
