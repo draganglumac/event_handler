@@ -156,7 +156,7 @@ void *jnx_event_mainloop(void *args) {
 	}
 	return 0;	
 }
-void jnx_event_global_create(unsigned int max_queue) {
+void jnx_event_global_create() {
 	srand(time(NULL));
 	if(!subscription_list) {
 		subscription_list = jnx_list_create();

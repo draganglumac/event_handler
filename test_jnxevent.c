@@ -156,7 +156,7 @@ void* multi_recipient(void *args) {
 }
 int main(int argc, char **argv) {
 	
-	jnx_event_global_create(10);
+	jnx_event_global_create();
 
 	jnx_thread_create_disposable(single_event,NULL);
 	

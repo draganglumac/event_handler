@@ -72,10 +72,23 @@ event_object *jnx_event_object_create(uint8_t *evt_type,void *data);
  * @param e event object for sending
  */
 void jnx_event_send(event_object *e);
+/**
+ * @fn int jnx_event_is_of_type(uint8_t *evt_Type, event_object *e)
+ * @brief will return 1 if event_type matches the event object_type
+ * @evt_type is the targetted event type 
+ * @e is the event_object to compare too
+ * @return 1 on match 0 on failure
+ */
 int jnx_event_is_of_type(uint8_t *evt_type, event_object *e);
-
-void jnx_event_global_create(unsigned int max_queue);
-
+/**
+ * @fn jnx_event_global_create()
+ * @brief set up the event system and initial queues
+ */
+void jnx_event_global_create();
+/**
+ * @fn jnx_event_global_destroy()
+ * @brief tears down internal data structures and releases event handlers
+ */
 void jnx_event_global_destroy();
 
 #ifdef __cplusplus
