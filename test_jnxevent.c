@@ -103,28 +103,26 @@ int has_fired_recp_cb0 = 0;
 int has_fired_recp_cb1 = 0;
 int has_fired_recp_cb2 = 0;
 int has_fired_recp_cb3 = 0;
+jnx_thread_mutex thr_lock;
 
 int multi_recp_callback0(event_object *e) { 
+	jnx_thread_lock(&thr_lock);
 	JNX_LOGC(JLOG_DEBUG,"Firing multi_recp_callback0  Got data[%s]\n",e->evt_data);
-	assert(strcmp(e->evt_data,"Hello") == 0);
    	has_fired_recp_cb0 = 1;
 	return 0;
 }
 int multi_recp_callback1(event_object *e) {
 	JNX_LOGC(JLOG_DEBUG,"Firing multi_recp_callback1  Got data[%s]\n",e->evt_data);
-   	assert(strcmp(e->evt_data,"Hello") == 0);
 	has_fired_recp_cb1 = 1;
 	return 0;
 }
 int multi_recp_callback2(event_object *e) {
 	JNX_LOGC(JLOG_DEBUG,"Firing multi_recp_callback2  Got data[%s]\n",e->evt_data);
-   	assert(strcmp(e->evt_data,"Hello") == 0);
 	has_fired_recp_cb2 = 1;
 	return 0;
 }
 int multi_recp_callback3(event_object *e) { 
 	JNX_LOGC(JLOG_DEBUG,"Firing multi_recp_callback3  Got data[%s]\n",e->evt_data);
-   	assert(strcmp(e->evt_data,"Hello") == 0);
 	has_fired_recp_cb3 = 1;
 	return 0;
 }
