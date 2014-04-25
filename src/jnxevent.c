@@ -94,6 +94,15 @@ void jnx_event_subscribe(jnx_event_handle *e) {
 	jnx_list_add(subscription_list,e);
 	jnx_thread_unlock(&evt_lock);
 }
+typedef struct datalink {
+	event_object *e;
+	jnx_event_handle *h;
+}datalink;
+void *async_update(void *args) {
+	datalink *d = args;
+	d->h->c(d->e);
+	JNX_MEM_FREE(d);
+}
 void jnx_event_update_subscribers(event_object *e) {
 	assert(e);	
 	jnx_thread_lock(&evt_lock);
@@ -102,7 +111,11 @@ void jnx_event_update_subscribers(event_object *e) {
 	while(head) {
 		jnx_event_handle *je = head->_data;
 		if(je->evt_type == e->evt_type) {
-			je->c(e);	
+			datalink *d = JNX_MEM_MALLOC(sizeof(datalink));
+			d->h = je;
+			d->e = e;
+			jnx_thread_create_disposable(async_update,d);	
+
 		}
 		head = head->next_node;
 	}
