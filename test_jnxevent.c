@@ -154,6 +154,77 @@ void* multi_recipient(void *args) {
 	test_three_not_complete = 1;
 	return 0;
 }
+
+int thread1_handler_called = 0;
+int thread1_handler(event_object *e) {
+	thread1_handler_called++;
+	return 0;
+}
+void *thread1_loop(void *args) {
+	jnx_event_handle *h1, *h2;
+	JNX_EVENT_SUBSCRIBE("event1", h1, thread1_handler);
+	JNX_EVENT_SUBSCRIBE("event2", h2, thread1_handler);
+	
+	time_t start, now;
+	double duration = 0.0, max = 10.0;
+	
+	time(&start);
+	while (duration < max) {
+		if (thread1_handler_called == 2) {
+			break;
+		}
+		time(&now);
+		duration += (now - start);
+		sleep(1);
+	}
+	JNX_EVENT_UNSUBSCRIBE(h1);
+	JNX_EVENT_UNSUBSCRIBE(h2);
+	
+	return NULL;
+}
+int thread2_handler_called = 0;
+int thread2_handler(event_object *e) {
+	thread2_handler_called++;
+	return 0;
+}
+void *thread2_loop(void *args) {
+	jnx_event_handle *h1, *h3;
+	JNX_EVENT_SUBSCRIBE("event1", h1, thread2_handler);
+	JNX_EVENT_SUBSCRIBE("event3", h3, thread2_handler);
+
+	time_t start, now;
+	double duration = 0.0, max = 10.0;
+	
+	time(&start);
+	while (duration < max) {
+		if (thread2_handler_called == 2) {
+			break;
+		}
+		time(&now);
+		duration += (now - start);
+		sleep(1);
+	}
+	JNX_EVENT_UNSUBSCRIBE(h1);
+	
+	return NULL;
+}
+
+void test_events_in_multiple_threads_and_no_payload() {
+	JNX_LOGC(JLOG_DEBUG,"test_events_in_multiple_threads_and_no_payload\n");
+	
+	jnx_thread_create_disposable(thread1_loop, NULL);
+	jnx_thread_create_disposable(thread2_loop, NULL);
+
+	JNX_EVENT_SEND("event1", NULL);
+	JNX_EVENT_SEND("event2", NULL);
+	JNX_EVENT_SEND("event3", NULL);
+
+	while (thread1_handler_called != 2 && thread2_handler_called != 2) {
+		sleep(1);
+	}
+
+    jnx_term_printf_in_color(JNX_COL_GREEN, "Test test_events_in_multiple_threads_and_no_payload passed.\n");
+}
 int main(int argc, char **argv) {
 	
 	jnx_event_global_create();
@@ -196,6 +267,7 @@ int main(int argc, char **argv) {
 	JNX_LOGC(JLOG_DEBUG,"Test three took %fs\n",duration);
 	assert(duration < max_test_timeout);
 
+	test_events_in_multiple_threads_and_no_payload();
 
 	jnx_event_global_destroy();
 	printf("Jnx event handler system:");
