@@ -27,15 +27,20 @@
 typedef struct internal_datalink {
 	jnx_event_subscriber *subscriber;
 	jnx_event *event;
+	jnx_event_system_handle *sys_handle;
 }internal_datalink;
 
-void *internal_async_send(void *args);
+void *internal_async_send_subscriber(void *args);
+void *internal_async_send_event(void *args);
 
-#define _INTERNAL_SEND_THREAD_DATA(X,Y) \
+#define _INTERNAL_SEND_EVENT_THREAD_DATA(X,Y) \
 	internal_datalink *d = JNX_MEM_MALLOC(sizeof(internal_datalink)); \
-	d->subscriber = X; d->event = Y; \
-	jnx_thread_create_disposable(internal_async_send,d);	
-
+d->subscriber = X; d->event = Y; \
+jnx_thread_create_disposable(internal_async_send_subscriber,d);	
+#define _INTERNAL_ADD_EVENT_THREAD_DATA(X,Y) \
+	internal_datalink *d = JNX_MEM_MALLOC(sizeof(internal_datalink)); \
+d->sys_handle = X; d->event = Y; \
+jnx_thread_create_disposable(internal_async_send_event,d);
 extern int jnx_hash_string(const char* input, int len);
 /* internal functions*/
 int generate_identity() {
@@ -51,19 +56,28 @@ jnx_event_subscriber *jnx_event_subscribe(jnx_event_system_handle *sys_handle, c
 	jnx_thread_unlock(&sys_handle->subscription_locker);
 	return subscriber;
 }
-void *internal_async_send(void *args) {
+void *internal_async_send_subscriber(void *args) {
 	internal_datalink *d = args;
 	d->subscriber->callback(d->event);
+	return 0;
+}
+void *internal_async_send_event(void *args) {
+	internal_datalink *d = args;
+
+	jnx_thread_lock(&d->sys_handle->queue_locker);
+	jnx_queue_push(d->sys_handle->event_queue,d->event);
+	jnx_thread_unlock(&d->sys_handle->queue_locker);
+	return 0;
 }
 void internal_update_subscribers(jnx_event_system_handle *sys_handle,jnx_event *event) {
-	
+
 	jnx_node *head = sys_handle->subscription_list->head,
 			 *reset = sys_handle->subscription_list->head;
 
 	while(head) {
 		jnx_event_subscriber *subscriber = head->_data;
 		if(subscriber->evt_type == event->evt_type) {
-			_INTERNAL_SEND_THREAD_DATA(subscriber,event);	
+			_INTERNAL_SEND_EVENT_THREAD_DATA(subscriber,event);	
 		}	
 		head = head->next_node;
 	}
@@ -76,11 +90,11 @@ void *internal_listen_loop(void *args) {
 	tim.tv_nsec=2500000000L;	
 
 	while(sys_handle->is_listening) {
-	
+
 		jnx_thread_lock(&sys_handle->subscription_locker);
 		size_t sub_count = sys_handle->subscription_list->counter;
 		jnx_thread_unlock(&sys_handle->subscription_locker);
-	
+
 		jnx_thread_lock(&sys_handle->queue_locker);
 		size_t queue_count = sys_handle->event_queue->list->counter;
 		jnx_thread_unlock(&sys_handle->queue_locker);
@@ -95,25 +109,22 @@ void *internal_listen_loop(void *args) {
 			jnx_thread_lock(&sys_handle->subscription_locker);
 			internal_update_subscribers(sys_handle,evt);	
 			jnx_thread_unlock(&sys_handle->subscription_locker);
-		
+
 		}
 		nanosleep(&tim,&tim2);
 	}
 }
 /*  end of internal functions */
 
-//maybe shovel this off of the caller thread
 int jnx_event_send(jnx_event_system_handle *sys_handle, char *evt_type, void *evt_data) {
-		
-		jnx_event *e = JNX_MEM_MALLOC(sizeof(jnx_event));	
-		e->evt_type = jnx_hash_string(evt_type,strlen(evt_type));
-		e->evt_data = evt_data;
-		e->identity = generate_identity();
 
-		jnx_thread_lock(&sys_handle->queue_locker);
-		jnx_queue_push(sys_handle->event_queue,e);
-		jnx_thread_unlock(&sys_handle->queue_locker);
-		return 0;
+	jnx_event *e = JNX_MEM_MALLOC(sizeof(jnx_event));	
+	e->evt_type = jnx_hash_string(evt_type,strlen(evt_type));
+	e->evt_data = evt_data;
+	e->identity = generate_identity();
+
+	_INTERNAL_ADD_EVENT_THREAD_DATA(sys_handle,e);
+	return 0;
 }
 void jnx_event_system_listen(jnx_event_system_handle *sys_handle) {
 	sys_handle->is_listening = 1;
@@ -130,6 +141,6 @@ jnx_event_system_handle* jnx_event_system_create() {
 	return sys_handle;	
 }
 void jnx_event_system_destroy(jnx_event_system_handle **sys_handle) {
-	
+
 	*sys_handle = NULL;
 }

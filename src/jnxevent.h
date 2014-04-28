@@ -14,8 +14,6 @@
 /**
  * @brief Event object is given to the use subscribing to an event
  */
-
-		
 typedef struct jnx_event {
 	unsigned long identity;
 	int evt_type;
@@ -41,10 +39,8 @@ typedef struct jnx_event_system_handle {
 	jnx_thread_mutex queue_locker;
 }jnx_event_system_handle;
 
-/*  firing */
 int jnx_event_send(jnx_event_system_handle *sys_handle, char *evt_type, void *evt_data);
 
-/* subscription */
 jnx_event_subscriber *jnx_event_subscribe(jnx_event_system_handle *sys_handle, char *evt_type,jnx_event_callback c);
 
 void jnx_event_system_listen(jnx_event_system_handle *e);
