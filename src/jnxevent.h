@@ -31,6 +31,7 @@ typedef struct jnx_event_handle {
 	jnx_event_callback c;
 }jnx_event_handle;
 
+
 #define JNX_EVENT_SEND(X,Y) \
 	jnx_event_send(jnx_event_object_create(X,Y)); 
 

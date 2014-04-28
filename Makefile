@@ -13,7 +13,7 @@ all: library
 test: debug
 	sh -c "./test"
 debug:	
-	gcc ${BUILDIR}/*.c *.c -o test -ljnxc -DJNX_MEMORY_MANAGEMENT
+	gcc ${BUILDIR}/*.c *.c -o test -ljnxc -DJNX_MEMORY_MANAGEMENT -g
 
 library:
 	gcc ${FLAGS} $(BUILDIR)/*.c

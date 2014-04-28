@@ -210,7 +210,7 @@ void *thread2_loop(void *args) {
 }
 
 void test_events_in_multiple_threads_and_no_payload() {
-	JNX_LOGC(JLOG_DEBUG,"test_events_in_multiple_threads_and_no_payload\n");
+	JNX_LOGC(JLOG_DEBUG,"test_events_in_multiple_threads_and_no_payload -");
 	
 	jnx_thread_create_disposable(thread1_loop, NULL);
 	jnx_thread_create_disposable(thread2_loop, NULL);
@@ -223,9 +223,25 @@ void test_events_in_multiple_threads_and_no_payload() {
 		sleep(1);
 	}
 
-    jnx_term_printf_in_color(JNX_COL_GREEN, "Test test_events_in_multiple_threads_and_no_payload passed.\n");
+    jnx_term_printf_in_color(JNX_COL_GREEN, "  OK\n");
+}
+
+
+
+void test_destructor_thrashing() {
+	JNX_LOGC(JLOG_NORMAL,"test_destructor_thrashing -");
+	int y = 0, x = 5;
+
+	for(y=0; y < x; ++y) {
+		jnx_event_global_create();
+		jnx_event_global_destroy();
+	}
+
+    jnx_term_printf_in_color(JNX_COL_GREEN, "  OK\n");
 }
 int main(int argc, char **argv) {
+
+	JNX_LOGC(JLOG_NORMAL,"Starting event tests...\n");	
 	
 	jnx_event_global_create();
 
@@ -242,7 +258,7 @@ int main(int argc, char **argv) {
 	JNX_LOGC(JLOG_DEBUG,"Test one took %fs\n",duration);
 	assert(duration < max_test_timeout);
 
-
+	
     time(&s);
 	duration = 0;
 	jnx_thread_create_disposable(multi_event,NULL);
@@ -270,6 +286,10 @@ int main(int argc, char **argv) {
 	test_events_in_multiple_threads_and_no_payload();
 
 	jnx_event_global_destroy();
+	
+	test_destructor_thrashing();
+	
+	
 	printf("Jnx event handler system:");
     jnx_term_printf_in_color(JNX_COL_GREEN, "  OK\n");
 	return 0;
