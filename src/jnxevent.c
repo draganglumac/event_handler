@@ -52,6 +52,13 @@ void *internal_async_send_event(void *args) {
 	jnx_thread_lock(&d->sys_handle->queue_locker);
 	jnx_queue_push(d->sys_handle->event_queue,d->event);
 	jnx_thread_unlock(&d->sys_handle->queue_locker);
+	JNX_MEM_FREE(d);
+	return 0;
+}
+void *internal_async_send_subscriber(void *args) {
+	internal_datalink *d = args;
+	d->subscriber->callback(d->event);
+	JNX_MEM_FREE(d);
 	return 0;
 }
 void internal_update_subscribers(jnx_event_system_handle *sys_handle,jnx_event *event) {
@@ -81,6 +88,7 @@ void *internal_listen_loop(void *args) {
 		}
 		jnx_thread_lock(&sys_handle->subscription_locker);
 		if(!sys_handle->subscription_list) {
+			jnx_thread_unlock(&sys_handle->subscription_locker);
 			continue;
 		}
 		size_t sub_count = sys_handle->subscription_list->counter;
@@ -88,6 +96,7 @@ void *internal_listen_loop(void *args) {
 
 		jnx_thread_lock(&sys_handle->queue_locker);
 		if(!sys_handle->event_queue) {
+			jnx_thread_unlock(&sys_handle->queue_locker);
 			continue;
 		}
 		size_t queue_count = sys_handle->event_queue->list->counter;
@@ -147,12 +156,6 @@ jnx_event_subscriber *jnx_event_subscribe(jnx_event_system_handle *sys_handle, c
 	jnx_thread_unlock(&sys_handle->subscription_locker);
 	return subscriber;
 }
-void *internal_async_send_subscriber(void *args) {
-	internal_datalink *d = args;
-	d->subscriber->callback(d->event);
-	return 0;
-}
-
 int jnx_event_send(jnx_event_system_handle *sys_handle, char *evt_type, void *evt_data) {
 
 	jnx_event *e = JNX_MEM_MALLOC(sizeof(jnx_event));	
