@@ -41,6 +41,8 @@ typedef struct jnx_event_system_handle {
 
 int jnx_event_send(jnx_event_system_handle *sys_handle, char *evt_type, void *evt_data);
 
+void jnx_event_unsubscribe(jnx_event_system_handle *sys_handle, jnx_event_subscriber *subscriber);
+
 jnx_event_subscriber *jnx_event_subscribe(jnx_event_system_handle *sys_handle, char *evt_type,jnx_event_callback c);
 
 void jnx_event_system_listen(jnx_event_system_handle *e);
