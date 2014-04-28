@@ -29,6 +29,7 @@ typedef struct jnx_event_handle {
 	unsigned long identity;
 	int evt_type;
 	jnx_event_callback c;
+	int is_exiting;
 }jnx_event_handle;
 
 

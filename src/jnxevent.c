@@ -51,6 +51,7 @@ jnx_event_handle *jnx_event_handle_create(uint8_t *evt_type,jnx_event_callback c
 	assert(c);
 	jnx_event_handle *e = JNX_MEM_MALLOC(sizeof(jnx_event_handle));
 	e->c = c;
+	e->is_exiting = 0;
 	e->evt_type = jnx_hash_string(evt_type,strlen(evt_type));
 	e->identity = jnx_event_identity_create();	
 	JNX_LOGC(JLOG_NORMAL,"Generated eventhandler with ID:%ld\n",e->identity);
@@ -72,29 +73,35 @@ void jnx_event_handle_destroy(jnx_event_handle *e) {
 	JNX_MEM_FREE(e);
 }
 void jnx_event_unsubscribe(jnx_event_handle *e) {
-	jnx_list *temp = jnx_list_create();
-	jnx_thread_lock(&sub_lock);
-	jnx_node *head = subscription_list->head;
-	while(head) {
-		jnx_event_handle *je = head->_data;
-		if(je->identity != e->identity) {
-			jnx_list_add(temp,je);
-		}
-		head = head->next_node;
-	}
-	jnx_list_destroy(&subscription_list);
-	subscription_list = temp;
-	JNX_LOGC(JLOG_NORMAL,"Number of events %d\n",subscription_list->counter);
-	jnx_thread_unlock(&sub_lock);
-	jnx_event_handle_destroy(e);
+	e->is_exiting = 1;
+	jnx_event_subscribe(e);
+
 }
 void jnx_event_subscribe(jnx_event_handle *e) {
 	JNX_LOGC(JLOG_NORMAL,"Subscribing new handle [%lu:%d]\n",e->identity,e->evt_type);
 	jnx_thread_lock(&sub_lock);
-	if(subscription_list){
-	jnx_list_add(subscription_list,e);
-	} else {
-		JNX_LOGC(JLOG_ALERT,"Global event system has not been activated - refusing subscription\n");
+
+	if(!subscription_list) {
+		JNX_LOGC(JLOG_NORMAL,"No subscription list to sub/unsub from\n");
+	}
+	if(e->is_exiting) {
+
+		jnx_list *temp = jnx_list_create();
+		jnx_node *head = subscription_list->head;
+		while(head) {
+			jnx_event_handle *je = head->_data;
+			if(je->identity != e->identity) {
+				jnx_list_add(temp,je);
+			}
+			head = head->next_node;
+		}
+		jnx_list_destroy(&subscription_list);
+		subscription_list = temp;
+		JNX_LOGC(JLOG_NORMAL,"Number of events %d\n",subscription_list->counter);
+		jnx_event_handle_destroy(e);
+
+	}else {
+		jnx_list_add(subscription_list,e);
 	}
 	jnx_thread_unlock(&sub_lock);
 }
