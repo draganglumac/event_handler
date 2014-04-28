@@ -1,5 +1,6 @@
 event_handler
 ============
+[![Build Status](https://travis-ci.org/AlexsJones/event_handler.png)](https://travis-ci.org/AlexsJones/event_handler)
 
 C based event handler system
 
