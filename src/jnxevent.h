@@ -31,10 +31,8 @@ typedef struct jnx_event_subscriber {
 typedef struct jnx_event_system_handle {
 	int is_listening;
 	int is_exiting;
-	
 	jnx_list *subscription_list;
 	jnx_queue *event_queue;
-
 	jnx_thread_mutex subscription_locker;
 	jnx_thread_mutex queue_locker;
 }jnx_event_system_handle;

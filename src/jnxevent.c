@@ -75,7 +75,10 @@ void *internal_listen_loop(void *args) {
 	tim.tv_nsec=2500000000L;	
 
 	while(sys_handle->is_listening) {
-
+		if(sys_handle->is_exiting) {
+			sys_handle->is_listening = 0;
+			return 0;
+		}
 		jnx_thread_lock(&sys_handle->subscription_locker);
 		if(!sys_handle->subscription_list) {
 			continue;
@@ -104,6 +107,12 @@ void *internal_listen_loop(void *args) {
 		}
 		nanosleep(&tim,&tim2);
 	}
+	JNX_LOGC(JLOG_DEBUG,"Started exiting...\n");
+
+	jnx_list_destroy(&sys_handle->subscription_list);
+	jnx_queue_destroy(&sys_handle->event_queue);
+	JNX_MEM_FREE(sys_handle);
+	return 0;
 }
 /*  end of internal functions */
 void jnx_event_unsubscribe(jnx_event_system_handle *sys_handle, jnx_event_subscriber *subscriber) {
@@ -156,7 +165,6 @@ int jnx_event_send(jnx_event_system_handle *sys_handle, char *evt_type, void *ev
 }
 void jnx_event_system_listen(jnx_event_system_handle *sys_handle) {
 	sys_handle->is_listening = 1;
-
 	jnx_thread_create_disposable(internal_listen_loop,sys_handle);
 }
 jnx_event_system_handle* jnx_event_system_create() {
@@ -169,6 +177,6 @@ jnx_event_system_handle* jnx_event_system_create() {
 	return sys_handle;	
 }
 void jnx_event_system_destroy(jnx_event_system_handle **sys_handle) {
-
-	*sys_handle = NULL;
+	jnx_event_system_handle *sys = *sys_handle;
+	sys->is_exiting = 1;
 }
