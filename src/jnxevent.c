@@ -20,180 +20,116 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <jnxc_headers/jnxthread.h>
-#include <jnxc_headers/jnxqueue.h>
 #include <jnxc_headers/jnxlog.h>
 #include <jnxc_headers/jnxhash.h>
 #include "jnxevent.h"
 #include <time.h>
-static jnx_thread_mutex sub_lock;
-static jnx_thread_mutex queue_lock;
-static pthread_t evt_thr;
-static pthread_mutex_t event_lock;
-static int exiting = 0;
-static jnx_list *subscription_list = NULL;
-static jnx_queue *event_queue = NULL;
+typedef struct internal_datalink {
+	jnx_event_subscriber *subscriber;
+	jnx_event *event;
+}internal_datalink;
 
-extern int jnx_hash_string(const char* input, int map_size);
+void *internal_async_send(void *args);
 
-unsigned long jnx_event_identity_create() {
-	return rand();
-}
-int jnx_event_is_of_type(uint8_t *evt_type, event_object *e) {
+#define _INTERNAL_SEND_THREAD_DATA(X,Y) \
+	internal_datalink *d = JNX_MEM_MALLOC(sizeof(internal_datalink)); \
+	d->subscriber = X; d->event = Y; \
+	jnx_thread_create_disposable(internal_async_send,d);	
 
-	int evt = jnx_hash_string(evt_type,strlen(evt_type));
-	if(e->evt_type == evt) {
-		return 1;
-	}
-	return 0;
+extern int jnx_hash_string(const char* input, int len);
+/* internal functions*/
+int generate_identity() {
+	return rand() % RAND_MAX;
 }
-jnx_event_handle *jnx_event_handle_create(uint8_t *evt_type,jnx_event_callback c) {
-	assert(evt_type);
-	assert(c);
-	jnx_event_handle *e = JNX_MEM_MALLOC(sizeof(jnx_event_handle));
-	e->c = c;
-	e->is_exiting = 0;
-	e->evt_type = jnx_hash_string(evt_type,strlen(evt_type));
-	e->identity = jnx_event_identity_create();	
-	JNX_LOGC(JLOG_NORMAL,"Generated eventhandler with ID:%ld\n",e->identity);
-	return e;
+jnx_event_subscriber *jnx_event_subscribe(jnx_event_system_handle *sys_handle, char *evt_type,jnx_event_callback c) {
+	jnx_event_subscriber *subscriber = JNX_MEM_MALLOC(sizeof(jnx_event_subscriber));
+	subscriber->evt_type = jnx_hash_string(evt_type,strlen(evt_type));
+	subscriber->identity = generate_identity();
+	subscriber->callback = c;
+	jnx_thread_lock(&sys_handle->subscription_locker);
+	jnx_list_add(sys_handle->subscription_list,subscriber);
+	jnx_thread_unlock(&sys_handle->subscription_locker);
+	return subscriber;
 }
-event_object *jnx_event_object_create(uint8_t *evt_type,void *data) {
-	JNX_LOGC(JLOG_NORMAL,"Creating event object\n");
-	event_object *eo = JNX_MEM_MALLOC(sizeof(event_object));
-	eo->evt_type = jnx_hash_string(evt_type,strlen(evt_type));
-	eo->evt_data = data;
-	eo->identity = jnx_event_identity_create();
-	JNX_LOGC(JLOG_NORMAL,"Generated event with ID:%lu\n",eo->identity);
-	return eo;
+void *internal_async_send(void *args) {
+	internal_datalink *d = args;
+	d->subscriber->callback(d->event);
 }
-void jnx_event_object_destroy(event_object *e) {
-	JNX_MEM_FREE(e);
-}
-void jnx_event_handle_destroy(jnx_event_handle *e) {
-	JNX_MEM_FREE(e);
-}
-void jnx_event_unsubscribe(jnx_event_handle *e) {
-	e->is_exiting = 1;
-	jnx_event_subscribe(e);
+void internal_update_subscribers(jnx_event_system_handle *sys_handle,jnx_event *event) {
+	
+	jnx_node *head = sys_handle->subscription_list->head,
+			 *reset = sys_handle->subscription_list->head;
 
-}
-void jnx_event_subscribe(jnx_event_handle *e) {
-	JNX_LOGC(JLOG_NORMAL,"Subscribing new handle [%lu:%d]\n",e->identity,e->evt_type);
-	jnx_thread_lock(&sub_lock);
-
-	if(!subscription_list) {
-		JNX_LOGC(JLOG_NORMAL,"No subscription list to sub/unsub from\n");
-	}
-	if(e->is_exiting) {
-
-		jnx_list *temp = jnx_list_create();
-		jnx_node *head = subscription_list->head;
-		while(head) {
-			jnx_event_handle *je = head->_data;
-			if(je->identity != e->identity) {
-				jnx_list_add(temp,je);
-			}
-			head = head->next_node;
-		}
-		jnx_list_destroy(&subscription_list);
-		subscription_list = temp;
-		JNX_LOGC(JLOG_NORMAL,"Number of events %d\n",subscription_list->counter);
-		jnx_event_handle_destroy(e);
-
-	}else {
-		jnx_list_add(subscription_list,e);
-	}
-	jnx_thread_unlock(&sub_lock);
-}
-typedef struct datalink {
-	event_object *e;
-	jnx_event_handle *h;
-}datalink;
-void *async_update(void *args) {
-	datalink *d = args;
-	d->h->c(d->e);
-	JNX_MEM_FREE(d);
-}
-void jnx_event_update_subscribers(event_object *e) {
-	assert(e);	
-	jnx_thread_lock(&sub_lock);
-	jnx_node *head = subscription_list->head,
-			 *reset = subscription_list->head;
 	while(head) {
-		jnx_event_handle *je = head->_data;
-		if(je->evt_type == e->evt_type) {
-			datalink *d = JNX_MEM_MALLOC(sizeof(datalink));
-			d->h = je;
-			d->e = e;
-			jnx_thread_create_disposable(async_update,d);	
-
-		}
+		jnx_event_subscriber *subscriber = head->_data;
+		if(subscriber->evt_type == event->evt_type) {
+			_INTERNAL_SEND_THREAD_DATA(subscriber,event);	
+		}	
 		head = head->next_node;
 	}
 	head = reset;
-	jnx_thread_unlock(&sub_lock);
-	JNX_LOGC(JLOG_NORMAL,"Queue length %d\n",event_queue->list->counter);
 }
-void jnx_event_send(event_object *e) {
-	jnx_thread_lock(&queue_lock);
-	jnx_queue_push(event_queue,e);
-	jnx_thread_unlock(&queue_lock);
-}
-void *jnx_event_mainloop(void *args) {
-
-	struct timespec tim, tim2;
+void *internal_listen_loop(void *args) {
+	jnx_event_system_handle *sys_handle = args;
+	struct timespec tim,tim2;
 	tim.tv_sec=0;
-	tim.tv_nsec=250000000L;
+	tim.tv_nsec=2500000000L;	
 
-	while(!exiting) {
-		jnx_thread_lock(&queue_lock);
-		event_object *e = jnx_queue_pop(event_queue);
-		jnx_thread_unlock(&queue_lock);
-		if(e) {
-			jnx_event_update_subscribers(e);		
-			JNX_MEM_FREE(e);
+	while(sys_handle->is_listening) {
+	
+		jnx_thread_lock(&sys_handle->subscription_locker);
+		size_t sub_count = sys_handle->subscription_list->counter;
+		jnx_thread_unlock(&sys_handle->subscription_locker);
+	
+		jnx_thread_lock(&sys_handle->queue_locker);
+		size_t queue_count = sys_handle->event_queue->list->counter;
+		jnx_thread_unlock(&sys_handle->queue_locker);
+
+		if(queue_count == 0 || sub_count == 0) {
+			continue;
 		}
-		if(nanosleep(&tim , &tim2) < 0 )   
-		{
-			printf("Nano sleep system call failed \n");
-			return NULL;
+		jnx_thread_lock(&sys_handle->queue_locker);
+		jnx_event *evt = jnx_queue_pop(sys_handle->event_queue);
+		jnx_thread_unlock(&sys_handle->queue_locker);
+		if(evt) {
+			jnx_thread_lock(&sys_handle->subscription_locker);
+			internal_update_subscribers(sys_handle,evt);	
+			jnx_thread_unlock(&sys_handle->subscription_locker);
+		
 		}
+		nanosleep(&tim,&tim2);
 	}
-	if(subscription_list) {
-		jnx_thread_lock(&sub_lock);
-		jnx_node *head = subscription_list->head;
-		while(head) {
-			jnx_event_handle *e = head->_data;
-			jnx_event_handle_destroy(e);
-			head = head->next_node;
-		}
-		jnx_list_destroy(&subscription_list);
-		subscription_list = NULL;
-		jnx_thread_unlock(&sub_lock);
-	}
-	if(event_queue) {
-		jnx_thread_lock(&queue_lock);
-		event_object *eo;
-		while((eo = jnx_queue_pop(event_queue)) != NULL) {
-			jnx_event_object_destroy(eo);
-		}	
-		jnx_queue_destroy(&event_queue);
-		event_queue = NULL;
-		jnx_thread_unlock(&queue_lock);
-	}
-	return 0;	
 }
-void jnx_event_global_create() {
-	exiting = 0;
-	srand(time(NULL));
-	if(!subscription_list) {
-		subscription_list = jnx_list_create();
-	}
-	if(!event_queue) {
-		event_queue = jnx_queue_create();
-	}
-	jnx_thread_create_disposable(jnx_event_mainloop,NULL);
+/*  end of internal functions */
+
+//maybe shovel this off of the caller thread
+int jnx_event_send(jnx_event_system_handle *sys_handle, char *evt_type, void *evt_data) {
+		
+		jnx_event *e = JNX_MEM_MALLOC(sizeof(jnx_event));	
+		e->evt_type = jnx_hash_string(evt_type,strlen(evt_type));
+		e->evt_data = evt_data;
+		e->identity = generate_identity();
+
+		jnx_thread_lock(&sys_handle->queue_locker);
+		jnx_queue_push(sys_handle->event_queue,e);
+		jnx_thread_unlock(&sys_handle->queue_locker);
+		return 0;
 }
-void jnx_event_global_destroy() {
-	exiting = 1;	
+void jnx_event_system_listen(jnx_event_system_handle *sys_handle) {
+	sys_handle->is_listening = 1;
+
+	jnx_thread_create_disposable(internal_listen_loop,sys_handle);
+}
+jnx_event_system_handle* jnx_event_system_create() {
+
+	jnx_event_system_handle *sys_handle = JNX_MEM_MALLOC(sizeof(jnx_event_system_handle));
+	sys_handle->is_exiting = 0;
+	sys_handle->is_listening = 1;
+	sys_handle->subscription_list = jnx_list_create();
+	sys_handle->event_queue = jnx_queue_create();
+	return sys_handle;	
+}
+void jnx_event_system_destroy(jnx_event_system_handle **sys_handle) {
+	
+	*sys_handle = NULL;
 }
